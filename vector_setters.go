@@ -230,15 +230,19 @@ func setBytes[S any](vec *vector, rowIdx mapping.IdxT, val S) error {
 }
 
 func setBit[S any](vec *vector, rowIdx mapping.IdxT, val S) error {
+	var bit Bit
 	switch v := any(val).(type) {
 	case Bit:
-		if err := v.Validate(); err != nil {
-			return err
-		}
-		mapping.VectorAssignStringElementLen(vec.vec, rowIdx, v.Data)
+		bit = v
+	case *Bit:
+		bit = *v
 	default:
 		return castError(reflect.TypeOf(val).String(), reflectTypeBit.String())
 	}
+	if err := bit.Validate(); err != nil {
+		return err
+	}
+	mapping.VectorAssignStringElementLen(vec.vec, rowIdx, bit.Data)
 	return nil
 }
 

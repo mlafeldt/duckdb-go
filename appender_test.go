@@ -901,6 +901,9 @@ func TestAppenderNullBit(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, a.AppendRow(nonNilBit))
 
+	// Append a non-nil *Bit.
+	require.NoError(t, a.AppendRow(&nonNilBit))
+
 	require.NoError(t, a.Flush())
 
 	// Verify results.
@@ -912,6 +915,10 @@ func TestAppenderNullBit(t *testing.T) {
 	var r *Bit
 	require.NoError(t, rows.Scan(&r))
 	require.Nil(t, r)
+
+	require.True(t, rows.Next())
+	require.NoError(t, rows.Scan(&r))
+	require.Equal(t, &nonNilBit, r)
 
 	require.True(t, rows.Next())
 	require.NoError(t, rows.Scan(&r))
