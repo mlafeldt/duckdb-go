@@ -202,16 +202,16 @@ func (vec *vector) getDecimal(rowIdx mapping.IdxT) Decimal {
 }
 
 func (vec *vector) getEnum(rowIdx mapping.IdxT) string {
-	var idx uint32
+	var idx mapping.IdxT
 	switch vec.internalType {
 	case TYPE_UTINYINT:
-		idx = uint32(getPrimitive[uint8](vec, rowIdx))
+		idx = mapping.IdxT(getPrimitive[uint8](vec, rowIdx))
 	case TYPE_USMALLINT:
-		idx = uint32(getPrimitive[uint16](vec, rowIdx))
+		idx = mapping.IdxT(getPrimitive[uint16](vec, rowIdx))
 	case TYPE_UINTEGER:
-		idx = getPrimitive[uint32](vec, rowIdx)
+		idx = mapping.IdxT(getPrimitive[uint32](vec, rowIdx))
 	case TYPE_UBIGINT:
-		idx = uint32(getPrimitive[uint64](vec, rowIdx))
+		idx = mapping.IdxT(getPrimitive[uint64](vec, rowIdx))
 	}
 
 	// Use the pre-built slice instead of CGO round-trips.
