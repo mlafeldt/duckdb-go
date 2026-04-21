@@ -220,9 +220,10 @@ func (vec *vector) getEnum(rowIdx mapping.IdxT) string {
 		idx = mapping.IdxT(getPrimitive[uint64](vec, rowIdx))
 	}
 
-	logicalType := mapping.VectorGetColumnType(vec.vec)
-	defer mapping.DestroyLogicalType(&logicalType)
-	return mapping.EnumDictionaryValue(logicalType, idx)
+	// Use the pre-built slice instead of CGO round-trips.
+	// Before: VectorGetColumnType + EnumDictionaryValue + DestroyLogicalType per cell.
+	// After:  single slice index — no CGO, no hashing, no heap allocation.
+	return vec.enumDict[idx]
 }
 
 func (vec *vector) getList(rowIdx mapping.IdxT) []any {
