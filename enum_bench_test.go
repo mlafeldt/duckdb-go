@@ -3,10 +3,7 @@ package duckdb
 import (
 	"context"
 	"database/sql"
-	"database/sql/driver"
-	"errors"
 	"fmt"
-	"io"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -54,10 +51,12 @@ func setupEnumBench(b *testing.B, rowCount int) (*sql.DB, *Connector) {
 	return db, c
 }
 
+var benchmarkEnumSink string
+
 // BenchmarkEnumGetValue compares the optimized enumDict path (new)
 // against the original CGO-per-cell path (old).
 //
-// Both sub-benchmarks iterate the same data at the vector level,
+// Both sub-benchmarks iterate the same fetched vectors,
 // differing only in the getter function called per cell:
 //   - Dict: vec.getEnum()    — single []string slice index lookup
 //   - CGO:  vec.getEnumCGO() — VectorGetColumnType + EnumDictionaryValue + DestroyLogicalType
@@ -85,7 +84,6 @@ func benchEnumVector(b *testing.B, rowCount int, useCGO bool) {
 		require.NoError(b, conn.Close())
 	}()
 
-	var sink string
 	b.ResetTimer()
 
 	for b.Loop() {
@@ -98,24 +96,28 @@ func benchEnumVector(b *testing.B, rowCount int, useCGO bool) {
 		r := dkRows.(*rows)
 
 		count := 0
-		dest := make([]driver.Value, 1)
 
 		for {
-			e = r.Next(dest)
-			if errors.Is(e, io.EOF) {
+			duckChunk := mapping.FetchChunk(r.res)
+			if duckChunk.Ptr == nil {
 				break
 			}
-			require.NoError(b, e)
 
-			// r.Next already advanced rowCount; the cell we want is rowCount-1.
-			vec := &r.chunk.columns[0]
-			idx := mapping.IdxT(r.rowCount - 1)
+			var chunk DataChunk
+			require.NoError(b, chunk.initFromDuckDataChunk(duckChunk, false))
+
+			vec := &chunk.columns[0]
 			if useCGO {
-				sink = vec.getEnumCGO(idx)
+				for rowIdx := range chunk.size {
+					benchmarkEnumSink = vec.getEnumCGO(mapping.IdxT(rowIdx))
+				}
 			} else {
-				sink = vec.getEnum(idx)
+				for rowIdx := range chunk.size {
+					benchmarkEnumSink = vec.getEnum(mapping.IdxT(rowIdx))
+				}
 			}
-			count++
+			count += chunk.size
+			chunk.close()
 		}
 
 		require.NoError(b, dkRows.Close())
@@ -124,5 +126,4 @@ func benchEnumVector(b *testing.B, rowCount int, useCGO bool) {
 	}
 
 	b.StopTimer()
-	_ = sink
 }
