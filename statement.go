@@ -382,8 +382,6 @@ func (s *Stmt) bindTypedValue(val TypedValue, n int) (mapping.State, error) {
 		return mapping.BindNull(*s.preparedStmt, mapping.IdxT(n+1)), nil
 	}
 
-	// TypedValue only admits scalar types, which createPrimitiveValue handles
-	// without needing a mapping.LogicalType.
 	mappedVal, err := createPrimitiveValue(val.typ, coerced)
 	defer mapping.DestroyValue(&mappedVal)
 	if err != nil {
