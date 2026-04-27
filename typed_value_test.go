@@ -180,6 +180,16 @@ func TestTypedRepresentativeScalars(t *testing.T) {
 		require.Equal(t, want, got)
 	})
 
+	t.Run("date and time", func(t *testing.T) {
+		want := time.Date(2024, time.April, 5, 12, 34, 56, 0, time.UTC)
+		var gotDate time.Time
+		var gotTime time.Time
+		err := db.QueryRow(`SELECT ?, ?`, Typed(want, TYPE_DATE), Typed(want, TYPE_TIME)).Scan(&gotDate, &gotTime)
+		require.NoError(t, err)
+		require.Equal(t, time.Date(2024, time.April, 5, 0, 0, 0, 0, time.UTC), gotDate)
+		require.Equal(t, time.Date(1, time.January, 1, 12, 34, 56, 0, time.UTC), gotTime)
+	})
+
 	t.Run("interval", func(t *testing.T) {
 		want := Interval{Days: 10, Months: 4, Micros: 123456}
 		var got Interval
@@ -207,9 +217,24 @@ func TestTypedNullAndValuerBinding(t *testing.T) {
 		require.Nil(t, got)
 	})
 
+	t.Run("sqlnull accepts nil", func(t *testing.T) {
+		var got any
+		err := db.QueryRow(`SELECT ?`, Typed(nil, TYPE_SQLNULL)).Scan(&got)
+		require.NoError(t, err)
+		require.Nil(t, got)
+	})
+
 	t.Run("valuer result is coerced", func(t *testing.T) {
 		var got int32
 		err := db.QueryRow(`SELECT ?`, Typed(typedIntValuer(42), TYPE_INTEGER)).Scan(&got)
+		require.NoError(t, err)
+		require.Equal(t, int32(42), got)
+	})
+
+	t.Run("typed value pointer binds value", func(t *testing.T) {
+		var got int32
+		typed := Typed(42, TYPE_INTEGER)
+		err := db.QueryRow(`SELECT ?`, &typed).Scan(&got)
 		require.NoError(t, err)
 		require.Equal(t, int32(42), got)
 	})
