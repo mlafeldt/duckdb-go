@@ -60,30 +60,34 @@ func coerceTypedValue(t Type, v any) (any, error) {
 		return nil, typedValueCastError(t, v)
 	case TYPE_TINYINT:
 		i, err := coerceTypedSignedInteger(t, v, math.MinInt8, math.MaxInt8)
-		return int8(i), err
+		return typedCoercionResult(int8(i), err)
 	case TYPE_SMALLINT:
 		i, err := coerceTypedSignedInteger(t, v, math.MinInt16, math.MaxInt16)
-		return int16(i), err
+		return typedCoercionResult(int16(i), err)
 	case TYPE_INTEGER:
 		i, err := coerceTypedSignedInteger(t, v, math.MinInt32, math.MaxInt32)
-		return int32(i), err
+		return typedCoercionResult(int32(i), err)
 	case TYPE_BIGINT:
-		return coerceTypedSignedInteger(t, v, math.MinInt64, math.MaxInt64)
+		i, err := coerceTypedSignedInteger(t, v, math.MinInt64, math.MaxInt64)
+		return typedCoercionResult(i, err)
 	case TYPE_UTINYINT:
 		i, err := coerceTypedUnsignedInteger(t, v, math.MaxUint8)
-		return uint8(i), err
+		return typedCoercionResult(uint8(i), err)
 	case TYPE_USMALLINT:
 		i, err := coerceTypedUnsignedInteger(t, v, math.MaxUint16)
-		return uint16(i), err
+		return typedCoercionResult(uint16(i), err)
 	case TYPE_UINTEGER:
 		i, err := coerceTypedUnsignedInteger(t, v, math.MaxUint32)
-		return uint32(i), err
+		return typedCoercionResult(uint32(i), err)
 	case TYPE_UBIGINT:
-		return coerceTypedUnsignedInteger(t, v, math.MaxUint64)
+		i, err := coerceTypedUnsignedInteger(t, v, math.MaxUint64)
+		return typedCoercionResult(i, err)
 	case TYPE_FLOAT:
-		return coerceTypedFloat32(t, v)
+		f, err := coerceTypedFloat32(t, v)
+		return typedCoercionResult(f, err)
 	case TYPE_DOUBLE:
-		return coerceTypedFloat64(t, v)
+		f, err := coerceTypedFloat64(t, v)
+		return typedCoercionResult(f, err)
 	case TYPE_VARCHAR:
 		if _, ok := v.(string); ok {
 			return v, nil
@@ -108,6 +112,13 @@ func supportsTypedValue(t Type) bool {
 	default:
 		return false
 	}
+}
+
+func typedCoercionResult[T any](v T, err error) (any, error) {
+	if err != nil {
+		return nil, err
+	}
+	return v, nil
 }
 
 func coerceTypedSignedInteger(t Type, v any, min, max int64) (int64, error) {
