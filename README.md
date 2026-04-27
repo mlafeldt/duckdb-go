@@ -300,6 +300,26 @@ When passing a `time.Time` to duckdb-go, duckdb-go transforms it to an instant w
 even when using `TIMESTAMP_TZ`. Later, scanning either type of value returns an instant, as SQL types do not model
 time zone information for individual values.
 
+Use `duckdb.Typed(value, typ)` to force the DuckDB logical type used when binding a query parameter.
+This is useful when DuckDB cannot infer the desired parameter type from SQL alone, or when duckdb-go's
+default Go-type inference would choose a different DuckDB type.
+
+```go
+start := time.Date(2024, time.April, 5, 0, 0, 0, 0, time.UTC)
+end := time.Date(2024, time.April, 6, 0, 0, 0, 0, time.UTC)
+
+row := db.QueryRow(`
+	SELECT COUNT(*)
+	FROM (VALUES
+		(TIMESTAMP_NS '2024-04-05 12:00:00.000000001')
+	) events_ns(ts)
+	WHERE ts >= ? AND ts < ?
+`, duckdb.Typed(start, duckdb.TYPE_TIMESTAMP_NS), duckdb.Typed(end, duckdb.TYPE_TIMESTAMP_NS))
+```
+
+In this example, the wrapper ensures the parameters bind as `TIMESTAMP_NS`. Bare `time.Time` values bind as
+`TIMESTAMP_TZ` by default. `Typed` is a narrow scalar binding hint; validation happens when the parameter is bound.
+
 **Connection lifetime**
 
 Temporary objects and state, such as temporary tables, are scoped to connections.

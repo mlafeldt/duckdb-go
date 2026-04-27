@@ -360,8 +360,51 @@ func (s *Stmt) bindComplexValue(val driver.NamedValue, n int, t Type, name strin
 	return mapping.StateError, addIndexToError(unsupportedTypeError(unknownTypeErrMsg), n+1)
 }
 
+func (s *Stmt) bindTypedValue(val TypedValue, n int) (mapping.State, error) {
+	value := val.value
+	// Unwrap driver.Valuer unless the caller already signalled NULL.
+	// Calling Value() on a typed-nil receiver can panic.
+	if val.typ != TYPE_SQLNULL && !isNil(value) {
+		if valuer, ok := value.(driver.Valuer); ok {
+			driverVal, err := valuer.Value()
+			if err != nil {
+				return mapping.StateError, addIndexToError(err, n+1)
+			}
+			value = driverVal
+		}
+	}
+
+	coerced, err := coerceTypedValue(val.typ, value)
+	if err != nil {
+		return mapping.StateError, addIndexToError(err, n+1)
+	}
+	if coerced == nil {
+		return mapping.BindNull(*s.preparedStmt, mapping.IdxT(n+1)), nil
+	}
+
+	// TypedValue only admits scalar types, which createPrimitiveValue handles
+	// without needing a mapping.LogicalType.
+	mappedVal, err := createPrimitiveValue(val.typ, coerced)
+	if err != nil {
+		return mapping.StateError, addIndexToError(err, n+1)
+	}
+	defer mapping.DestroyValue(&mappedVal)
+
+	return mapping.BindValue(*s.preparedStmt, mapping.IdxT(n+1), mappedVal), nil
+}
+
 //nolint:gocyclo
 func (s *Stmt) bindValue(val driver.NamedValue, n int) (mapping.State, error) {
+	switch explicit := val.Value.(type) {
+	case TypedValue:
+		return s.bindTypedValue(explicit, n)
+	case *TypedValue:
+		if explicit == nil {
+			return mapping.BindNull(*s.preparedStmt, mapping.IdxT(n+1)), nil
+		}
+		return s.bindTypedValue(*explicit, n)
+	}
+
 	// For some queries, we cannot resolve the parameter type when preparing the query.
 	// E.g., for "SELECT * FROM (VALUES (?, ?)) t(a, b)", we cannot know the parameter types from the SQL statement alone.
 	// For these cases, ParamType returns TYPE_INVALID.
