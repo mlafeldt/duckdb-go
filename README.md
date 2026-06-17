@@ -454,6 +454,8 @@ Additionally, automatic extension loading is enabled.
 
 ## Releasing a New DuckDB Version
 
+Prepare normal releases from `main`. For LTS releases that stay on DuckDB 1.4 Andium, use the `v1.4-andium` branch.
+
 1. Create a new branch.
 2. Update `duckdb-go-bindings` via `go get github.com/duckdb/duckdb-go-bindings@latest`.
 3. Run `go mod tidy`.
