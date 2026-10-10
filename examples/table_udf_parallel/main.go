@@ -142,7 +142,7 @@ func main() {
 			rowSum += value.(int64)
 		}
 	}
-	fmt.Printf("row sum: %d", rowSum)
+	fmt.Printf("row sum: %d\n", rowSum)
 
 	check(rows.Close())
 	check(conn.Close())
